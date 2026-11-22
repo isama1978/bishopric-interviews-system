@@ -32,6 +32,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/generated/**",
   ]),
   {
     rules: {
@@ -48,6 +49,10 @@ const eslintConfig = defineConfig([
           patterns: [
             ...FRAMEWORK_IMPORTS.patterns,
             ...OUTER_LAYER_PATTERNS(["application", "infrastructure", "interfaces"]),
+            {
+              group: ["**/generated/prisma", "**/generated/prisma/**"],
+              message: "Esta capa no puede depender de Prisma.",
+            },
           ],
         },
       ],
@@ -63,6 +68,10 @@ const eslintConfig = defineConfig([
           patterns: [
             ...FRAMEWORK_IMPORTS.patterns,
             ...OUTER_LAYER_PATTERNS(["infrastructure", "interfaces"]),
+            {
+              group: ["**/generated/prisma", "**/generated/prisma/**"],
+              message: "Esta capa no puede depender de Prisma.",
+            },
           ],
         },
       ],

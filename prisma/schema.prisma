@@ -1,0 +1,365 @@
+// ============================================================
+// Sistema de agenda de entrevistas - Esquema Prisma (PostgreSQL)
+// ============================================================
+// Notas:
+// - Las restricciones que Prisma no puede expresar (solapamientos, índices
+//   parciales, CHECKs, trigger de solo-alta) están en
+//   prisma/sql/001_constraints.sql y se aplican en una migración manual.
+// - Todos los instantes se guardan en UTC (timestamptz). La zona horaria de
+//   presentación vive en AppConfig.timezone, no en el código.
+// - Datos de contacto cifrados en la aplicación (AES-256-GCM): se guardan como
+//   texto (iv + tag + ciphertext en base64) en las columnas *Enc.
+// - Si usás Prisma 7 o posterior, la URL de conexión se declara en
+//   prisma.config.ts y el generador puede cambiar de nombre: seguí la guía de
+//   tu versión.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------
+// Enumerados
+// ------------------------------------------------------------
+
+enum StaffRole {
+  PRINCIPAL
+  SECRETARY
+  COUNSELOR
+}
+
+enum ThemeMode {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum StaffTokenPurpose {
+  ACTIVATION
+  PASSWORD_RESET
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  NO_SHOW
+  CANCELLED_BY_MEMBER
+  CANCELLED_BY_LEADER_PENDING // cancelada por el líder, esperando decisión
+  CANCELLED_NOTIFIED          // cancelada definitivamente y miembro avisado
+}
+
+enum InterviewEventType {
+  CREATED
+  RESCHEDULED
+  CANCELLED_BY_MEMBER
+  CANCELLED_BY_LEADER
+  REASSIGNED
+  TAKEN_BY_PRINCIPAL
+  MEMBER_NOTIFIED
+  COMPLETED
+  NO_SHOW
+}
+
+enum FormFieldType {
+  TEXT
+  TEXTAREA
+  SELECT
+  CHECKBOX
+  NUMBER
+}
+
+enum BannerLevel {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+// ------------------------------------------------------------
+// Padrón de miembros
+// ------------------------------------------------------------
+
+model Member {
+  id               String   @id @default(cuid())
+  matchKey         String   @unique // HMAC(nombre normalizado + fecha de nacimiento); la fecha no se guarda
+  fullName         String
+  fullNameSearch   String // minúsculas y sin acentos, para el autocompletado
+  phoneEnc         String? // cifrado en la aplicación
+  emailEnc         String? // cifrado en la aplicación
+  linkTokenVersion Int      @default(1) // sube para invalidar el enlace personal
+  isActive         Boolean  @default(true)
+  lastSyncedAt     DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  interviews Interview[]
+
+  @@index([fullNameSearch])
+  @@index([isActive])
+}
+
+// ------------------------------------------------------------
+// Personal y autenticación
+// ------------------------------------------------------------
+
+model StaffUser {
+  id               String    @id @default(cuid())
+  username         String    @unique
+  displayName      String
+  role             StaffRole
+  passwordHash     String? // bcrypt; null hasta que se activa la cuenta
+  isActive         Boolean   @default(true)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  themeMode        ThemeMode @default(SYSTEM)
+  totpSecretEnc    String? // 2FA opcional, cifrado en la aplicación
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  leader          Leader?
+  sessions        StaffSession[]
+  tokens          StaffToken[]       @relation("TokenOwner")
+  issuedTokens    StaffToken[]       @relation("TokenIssuer")
+  interviewEvents InterviewEvent[]
+  auditLogs       AuditLog[]
+  churchSessions  ChurchSession[]
+
+  @@index([role, isActive])
+}
+
+model StaffSession {
+  id          String    @id @default(cuid())
+  staffUserId String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@index([staffUserId])
+  @@index([expiresAt])
+}
+
+// Enlaces de un solo uso para activar cuenta o restablecer contraseña
+model StaffToken {
+  id          String            @id @default(cuid())
+  staffUserId String
+  purpose     StaffTokenPurpose
+  tokenHash   String            @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  issuedById  String?
+  createdAt   DateTime          @default(now())
+
+  staffUser StaffUser  @relation("TokenOwner", fields: [staffUserId], references: [id], onDelete: Cascade)
+  issuedBy  StaffUser? @relation("TokenIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  @@index([staffUserId, purpose])
+}
+
+// ------------------------------------------------------------
+// Líderes (quienes entrevistan). El secretario no tiene fila aquí.
+// ------------------------------------------------------------
+
+model Leader {
+  id                  String  @id @default(cuid())
+  staffUserId         String  @unique
+  minutesPerInterview Int? // null = usa AppConfig.defaultMinutesPerInterview
+  maxInterviewsPerDay Int? // null = sin tope
+  sortOrder           Int     @default(0)
+  isActive            Boolean @default(true)
+
+  staffUser    StaffUser           @relation(fields: [staffUserId], references: [id])
+  interviews   Interview[]
+  dayOverrides LeaderDayOverride[]
+  eventsFrom   InterviewEvent[]    @relation("EventFromLeader")
+  eventsTo     InterviewEvent[]    @relation("EventToLeader")
+}
+
+// Ajuste de un líder para una fecha puntual (minutos o cantidad del día)
+model LeaderDayOverride {
+  id                  String   @id @default(cuid())
+  leaderId            String
+  date                DateTime @db.Date
+  minutesPerInterview Int?
+  maxInterviews       Int?
+  leader              Leader   @relation(fields: [leaderId], references: [id], onDelete: Cascade)
+
+  @@unique([leaderId, date])
+}
+
+// ------------------------------------------------------------
+// Calendario de atención (común a todos los líderes)
+// ------------------------------------------------------------
+
+// Regla recurrente por día de la semana (0 = domingo ... 6 = sábado)
+model SchedulePattern {
+  id              String  @id @default(cuid())
+  weekday         Int     @unique
+  startMinute     Int // minutos desde las 00:00 (ej. 19:00 = 1140)
+  lastStartMinute Int // hora de inicio de la última entrevista (ej. 21:30 = 1290)
+  isEnabled       Boolean @default(true)
+}
+
+// Excepción para una fecha concreta: habilita o deshabilita un día
+model ScheduleDay {
+  id              String   @id @default(cuid())
+  date            DateTime @unique @db.Date
+  isEnabled       Boolean
+  startMinute     Int? // obligatorio si se habilita un día sin regla recurrente
+  lastStartMinute Int?
+  note            String?
+}
+
+// ------------------------------------------------------------
+// Categorías y campos configurables del formulario
+// ------------------------------------------------------------
+
+model InterviewCategory {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  isSensitive Boolean @default(false) // fuerza que atienda el líder principal
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  interviews Interview[]
+}
+
+model FormField {
+  id           String        @id @default(cuid())
+  key          String        @unique // identificador estable, no cambia
+  label        String
+  helpText     String?
+  type         FormFieldType
+  isRequired   Boolean       @default(false)
+  options      Json? // lista de opciones para SELECT
+  isRestricted Boolean       @default(false) // solo visible a principal y secretario
+  isActive     Boolean       @default(true)
+  sortOrder    Int           @default(0)
+
+  answers InterviewAnswer[]
+}
+
+// ------------------------------------------------------------
+// Entrevistas
+// ------------------------------------------------------------
+
+model Interview {
+  id            String          @id @default(cuid())
+  memberId      String
+  leaderId      String
+  categoryId    String
+  startsAt      DateTime        @db.Timestamptz(3)
+  endsAt        DateTime        @db.Timestamptz(3)
+  status        InterviewStatus @default(SCHEDULED)
+  isOverbooking Boolean         @default(false) // sobreturno
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  member   Member            @relation(fields: [memberId], references: [id])
+  leader   Leader            @relation(fields: [leaderId], references: [id])
+  category InterviewCategory @relation(fields: [categoryId], references: [id])
+  answers  InterviewAnswer[]
+  events   InterviewEvent[]
+
+  @@index([leaderId, startsAt])
+  @@index([memberId, startsAt])
+  @@index([status, startsAt])
+  @@index([categoryId])
+}
+
+model InterviewAnswer {
+  id          String    @id @default(cuid())
+  interviewId String
+  fieldId     String
+  fieldLabel  String // copia de la etiqueta al momento de responder
+  value       Json
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  field       FormField @relation(fields: [fieldId], references: [id])
+
+  @@unique([interviewId, fieldId])
+}
+
+// Historial de solo-alta: base de las estadísticas
+model InterviewEvent {
+  id             String             @id @default(cuid())
+  interviewId    String
+  type           InterviewEventType
+  occurredAt     DateTime           @default(now())
+  actorStaffId   String? // null si la acción la hizo el propio miembro
+  fromStartsAt   DateTime?          @db.Timestamptz(3)
+  toStartsAt     DateTime?          @db.Timestamptz(3)
+  fromLeaderId   String?
+  toLeaderId     String?
+
+  interview  Interview  @relation(fields: [interviewId], references: [id])
+  actorStaff StaffUser? @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
+  fromLeader Leader?    @relation("EventFromLeader", fields: [fromLeaderId], references: [id], onDelete: SetNull)
+  toLeader   Leader?    @relation("EventToLeader", fields: [toLeaderId], references: [id], onDelete: SetNull)
+
+  @@index([interviewId])
+  @@index([type, occurredAt])
+}
+
+// ------------------------------------------------------------
+// Configuración visible: banners y ajustes globales
+// ------------------------------------------------------------
+
+model Banner {
+  id        String      @id @default(cuid())
+  title     String?
+  message   String
+  level     BannerLevel @default(INFO)
+  isActive  Boolean     @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([isActive, startsAt, endsAt])
+}
+
+// Fila única (id = 1)
+model AppConfig {
+  id                         Int       @id @default(1)
+  timezone                   String    @default("America/Argentina/Cordoba")
+  defaultMemberTheme         ThemeMode @default(LIGHT)
+  defaultMinutesPerInterview Int       @default(30)
+  maxOverbookingsPerDay      Int       @default(3)
+  privacyNotice              String?
+  updatedAt                  DateTime  @updatedAt
+}
+
+// ------------------------------------------------------------
+// Integración con el padrón de origen y auditoría
+// ------------------------------------------------------------
+
+// Fila única (id = 1): cookies de la sesión, cifradas en la aplicación
+model ChurchSession {
+  id             Int        @id @default(1)
+  cookiesEnc     String
+  updatedById    String?
+  updatedAt      DateTime   @updatedAt
+  lastSyncAt     DateTime?
+  lastSyncStatus String?
+  lastSyncCount  Int?
+  updatedBy      StaffUser? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id           String     @id @default(cuid())
+  occurredAt   DateTime   @default(now())
+  actorStaffId String?
+  action       String // ej. "interview.viewed", "staff.created"
+  entityType   String
+  entityId     String?
+  actorStaff   StaffUser? @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([entityType, entityId])
+  @@index([actorStaffId])
+}
