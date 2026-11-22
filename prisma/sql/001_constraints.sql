@@ -97,7 +97,6 @@ CREATE UNIQUE INDEX "StaffUser_single_active_secretary"
 -- Configuración: fila única
 -- ------------------------------------------------------------
 ALTER TABLE "AppConfig" ADD CONSTRAINT "AppConfig_singleton" CHECK ("id" = 1);
-ALTER TABLE "ChurchSession" ADD CONSTRAINT "ChurchSession_singleton" CHECK ("id" = 1);
 
 -- ------------------------------------------------------------
 -- Historial de eventos: solo-alta (no se edita ni se borra)

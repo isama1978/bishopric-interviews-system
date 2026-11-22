@@ -49,7 +49,7 @@ enum InterviewStatus {
   NO_SHOW
   CANCELLED_BY_MEMBER
   CANCELLED_BY_LEADER_PENDING // cancelada por el líder, esperando decisión
-  CANCELLED_NOTIFIED          // cancelada definitivamente y miembro avisado
+  CANCELLED_NOTIFIED // cancelada definitivamente y miembro avisado
 }
 
 enum InterviewEventType {
@@ -84,17 +84,17 @@ enum BannerLevel {
 // ------------------------------------------------------------
 
 model Member {
-  id               String   @id @default(cuid())
-  matchKey         String   @unique // HMAC(nombre normalizado + fecha de nacimiento); la fecha no se guarda
+  id               String    @id @default(cuid())
+  matchKey         String    @unique // HMAC(nombre normalizado + fecha de nacimiento); la fecha no se guarda
   fullName         String
   fullNameSearch   String // minúsculas y sin acentos, para el autocompletado
   phoneEnc         String? // cifrado en la aplicación
   emailEnc         String? // cifrado en la aplicación
-  linkTokenVersion Int      @default(1) // sube para invalidar el enlace personal
-  isActive         Boolean  @default(true)
-  lastSyncedAt     DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  linkTokenVersion Int       @default(1) // sube para invalidar el enlace personal
+  isActive         Boolean   @default(true)
+  lastSyncedAt     DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
 
   interviews Interview[]
 
@@ -114,19 +114,18 @@ model StaffUser {
   passwordHash     String? // bcrypt; null hasta que se activa la cuenta
   isActive         Boolean   @default(true)
   failedLoginCount Int       @default(0)
-  lockedUntil      DateTime?
+  lockedUntil      DateTime? @db.Timestamptz(3)
   themeMode        ThemeMode @default(SYSTEM)
   totpSecretEnc    String? // 2FA opcional, cifrado en la aplicación
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
 
   leader          Leader?
   sessions        StaffSession[]
-  tokens          StaffToken[]       @relation("TokenOwner")
-  issuedTokens    StaffToken[]       @relation("TokenIssuer")
+  tokens          StaffToken[]     @relation("TokenOwner")
+  issuedTokens    StaffToken[]     @relation("TokenIssuer")
   interviewEvents InterviewEvent[]
   auditLogs       AuditLog[]
-  churchSessions  ChurchSession[]
 
   @@index([role, isActive])
 }
@@ -135,8 +134,8 @@ model StaffSession {
   id          String    @id @default(cuid())
   staffUserId String
   tokenHash   String    @unique
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
+  expiresAt   DateTime  @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
   staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
 
   @@index([staffUserId])
@@ -149,10 +148,10 @@ model StaffToken {
   staffUserId String
   purpose     StaffTokenPurpose
   tokenHash   String            @unique
-  expiresAt   DateTime
-  usedAt      DateTime?
+  expiresAt   DateTime          @db.Timestamptz(3)
+  usedAt      DateTime?         @db.Timestamptz(3)
   issuedById  String?
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
 
   staffUser StaffUser  @relation("TokenOwner", fields: [staffUserId], references: [id], onDelete: Cascade)
   issuedBy  StaffUser? @relation("TokenIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
@@ -256,8 +255,8 @@ model Interview {
   endsAt        DateTime        @db.Timestamptz(3)
   status        InterviewStatus @default(SCHEDULED)
   isOverbooking Boolean         @default(false) // sobreturno
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
 
   member   Member            @relation(fields: [memberId], references: [id])
   leader   Leader            @relation(fields: [leaderId], references: [id])
@@ -285,20 +284,20 @@ model InterviewAnswer {
 
 // Historial de solo-alta: base de las estadísticas
 model InterviewEvent {
-  id             String             @id @default(cuid())
-  interviewId    String
-  type           InterviewEventType
-  occurredAt     DateTime           @default(now())
-  actorStaffId   String? // null si la acción la hizo el propio miembro
-  fromStartsAt   DateTime?          @db.Timestamptz(3)
-  toStartsAt     DateTime?          @db.Timestamptz(3)
-  fromLeaderId   String?
-  toLeaderId     String?
+  id           String             @id @default(cuid())
+  interviewId  String
+  type         InterviewEventType
+  occurredAt   DateTime           @default(now()) @db.Timestamptz(3)
+  actorStaffId String? // null si la acción la hizo el propio miembro
+  fromStartsAt DateTime?          @db.Timestamptz(3)
+  toStartsAt   DateTime?          @db.Timestamptz(3)
+  fromLeaderId String?
+  toLeaderId   String?
 
   interview  Interview  @relation(fields: [interviewId], references: [id])
-  actorStaff StaffUser? @relation(fields: [actorStaffId], references: [id], onDelete: SetNull)
-  fromLeader Leader?    @relation("EventFromLeader", fields: [fromLeaderId], references: [id], onDelete: SetNull)
-  toLeader   Leader?    @relation("EventToLeader", fields: [toLeaderId], references: [id], onDelete: SetNull)
+  actorStaff StaffUser? @relation(fields: [actorStaffId], references: [id], onDelete: Restrict)
+  fromLeader Leader?    @relation("EventFromLeader", fields: [fromLeaderId], references: [id], onDelete: Restrict)
+  toLeader   Leader?    @relation("EventToLeader", fields: [toLeaderId], references: [id], onDelete: Restrict)
 
   @@index([interviewId])
   @@index([type, occurredAt])
@@ -314,11 +313,11 @@ model Banner {
   message   String
   level     BannerLevel @default(INFO)
   isActive  Boolean     @default(true)
-  startsAt  DateTime?
-  endsAt    DateTime?
+  startsAt  DateTime?   @db.Timestamptz(3)
+  endsAt    DateTime?   @db.Timestamptz(3)
   sortOrder Int         @default(0)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime    @updatedAt @db.Timestamptz(3)
 
   @@index([isActive, startsAt, endsAt])
 }
@@ -331,28 +330,16 @@ model AppConfig {
   defaultMinutesPerInterview Int       @default(30)
   maxOverbookingsPerDay      Int       @default(3)
   privacyNotice              String?
-  updatedAt                  DateTime  @updatedAt
+  updatedAt                  DateTime  @updatedAt @db.Timestamptz(3)
 }
 
 // ------------------------------------------------------------
 // Integración con el padrón de origen y auditoría
 // ------------------------------------------------------------
 
-// Fila única (id = 1): cookies de la sesión, cifradas en la aplicación
-model ChurchSession {
-  id             Int        @id @default(1)
-  cookiesEnc     String
-  updatedById    String?
-  updatedAt      DateTime   @updatedAt
-  lastSyncAt     DateTime?
-  lastSyncStatus String?
-  lastSyncCount  Int?
-  updatedBy      StaffUser? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
-}
-
 model AuditLog {
   id           String     @id @default(cuid())
-  occurredAt   DateTime   @default(now())
+  occurredAt   DateTime   @default(now()) @db.Timestamptz(3)
   actorStaffId String?
   action       String // ej. "interview.viewed", "staff.created"
   entityType   String
