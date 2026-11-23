@@ -90,6 +90,8 @@ model Member {
   fullNameSearch   String // minúsculas y sin acentos, para el autocompletado
   phoneEnc         String? // cifrado en la aplicación
   emailEnc         String? // cifrado en la aplicación
+  phoneIsManual    Boolean   @default(false) // true si el personal cargó el teléfono a mano; la importación no lo pisa
+  emailIsManual    Boolean   @default(false) // ídem para el correo
   linkTokenVersion Int       @default(1) // sube para invalidar el enlace personal
   isActive         Boolean   @default(true)
   lastSyncedAt     DateTime? @db.Timestamptz(3)
