@@ -9,7 +9,7 @@ if (existsSync(ENV_FILE)) {
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  migrations: { path: "prisma/migrations" },
+  migrations: { path: "prisma/migrations", seed: "tsx prisma/seed.ts" },
   // Migraciones: conexión directa, nunca el pooler.
   datasource: { url: env("DIRECT_URL") },
 });
