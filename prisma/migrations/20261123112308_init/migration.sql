@@ -22,7 +22,7 @@ CREATE TYPE "BannerLevel" AS ENUM ('INFO', 'SUCCESS', 'WARNING', 'ERROR');
 -- CreateTable
 CREATE TABLE "Member" (
     "id" TEXT NOT NULL,
-    "matchKey" TEXT NOT NULL,
+    "churchUuid" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
     "fullNameSearch" TEXT NOT NULL,
     "phoneEnc" TEXT,
@@ -236,7 +236,7 @@ CREATE TABLE "AuditLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Member_matchKey_key" ON "Member"("matchKey");
+CREATE UNIQUE INDEX "Member_churchUuid_key" ON "Member"("churchUuid");
 
 -- CreateIndex
 CREATE INDEX "Member_fullNameSearch_idx" ON "Member"("fullNameSearch");

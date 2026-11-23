@@ -24,7 +24,6 @@ export const envSchema = z.object({
   DIRECT_URL: postgresUrl,
   APP_ENCRYPTION_KEY: encryptionKey,
   MEMBER_LINK_SECRET: secret,
-  MEMBER_MATCH_SECRET: secret,
   SESSION_SECRET: secret,
 });
 

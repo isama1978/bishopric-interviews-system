@@ -24,7 +24,7 @@ El diseño completo está en el documento técnico y la lista de tareas del proy
    cp .env.example .env.local
    ```
 
-3. Completar `.env.local`. Los cuatro secretos se generan cada uno con:
+3. Completar `.env.local`. Los tres secretos se generan cada uno con:
 
    ```bash
    openssl rand -base64 32
@@ -44,16 +44,15 @@ Si falta una variable o tiene un formato inválido, la aplicación no arranca y 
 
 ## Variables de entorno
 
-| Variable              | Para qué sirve                                             |
-| --------------------- | ---------------------------------------------------------- |
-| `DATABASE_URL`        | Conexión a PostgreSQL con pooler (la usa la aplicación)    |
-| `DIRECT_URL`          | Conexión directa a PostgreSQL (la usan las migraciones)    |
-| `APP_ENCRYPTION_KEY`  | Clave AES-256-GCM (base64 de 32 bytes) para datos cifrados |
-| `MEMBER_LINK_SECRET`  | Firma de los enlaces personales de los miembros            |
-| `MEMBER_MATCH_SECRET` | Firma de las claves de coincidencia del padrón             |
-| `SESSION_SECRET`      | Protección de las sesiones del personal                    |
+| Variable             | Para qué sirve                                             |
+| -------------------- | ---------------------------------------------------------- |
+| `DATABASE_URL`       | Conexión a PostgreSQL con pooler (la usa la aplicación)    |
+| `DIRECT_URL`         | Conexión directa a PostgreSQL (la usan las migraciones)    |
+| `APP_ENCRYPTION_KEY` | Clave AES-256-GCM (base64 de 32 bytes) para datos cifrados |
+| `MEMBER_LINK_SECRET` | Firma de los enlaces personales de los miembros            |
+| `SESSION_SECRET`     | Protección de las sesiones del personal                    |
 
-Los cuatro secretos deben ser distintos entre sí. `.env.local` nunca se sube al repositorio. Guardar una copia de `APP_ENCRYPTION_KEY` en un gestor de contraseñas: sin ella no se pueden recuperar los datos cifrados.
+Los tres secretos deben ser distintos entre sí. `.env.local` nunca se sube al repositorio. Guardar una copia de `APP_ENCRYPTION_KEY` en un gestor de contraseñas: sin ella no se pueden recuperar los datos cifrados.
 
 ## Scripts
 

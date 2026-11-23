@@ -85,7 +85,7 @@ enum BannerLevel {
 
 model Member {
   id               String    @id @default(cuid())
-  matchKey         String    @unique // HMAC(nombre normalizado + fecha de nacimiento); la fecha no se guarda
+  churchUuid       String    @unique // identificador estable (uuid) que trae el listado de origen
   fullName         String
   fullNameSearch   String // minúsculas y sin acentos, para el autocompletado
   phoneEnc         String? // cifrado en la aplicación

@@ -9,7 +9,6 @@ const validSource = {
   DIRECT_URL: "postgresql://user:pass@localhost:5432/db",
   APP_ENCRYPTION_KEY: FAKE_KEY,
   MEMBER_LINK_SECRET: FAKE_SECRET,
-  MEMBER_MATCH_SECRET: FAKE_SECRET,
   SESSION_SECRET: FAKE_SECRET,
 };
 
