@@ -53,6 +53,10 @@ const eslintConfig = defineConfig([
               group: ["**/generated/prisma", "**/generated/prisma/**"],
               message: "Esta capa no puede depender de Prisma.",
             },
+            {
+              group: ["**/shared/database", "**/shared/database/**"],
+              message: "Esta capa no puede acceder a la base de datos directamente.",
+            },
           ],
         },
       ],
@@ -71,6 +75,10 @@ const eslintConfig = defineConfig([
             {
               group: ["**/generated/prisma", "**/generated/prisma/**"],
               message: "Esta capa no puede depender de Prisma.",
+            },
+            {
+              group: ["**/shared/database", "**/shared/database/**"],
+              message: "Esta capa no puede acceder a la base de datos directamente.",
             },
           ],
         },
