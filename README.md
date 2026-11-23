@@ -66,6 +66,48 @@ Los tres secretos deben ser distintos entre sí. `.env.local` nunca se sube al r
 | `npm run format:check` | Comprueba el formato sin modificar archivos |
 | `npm test`             | Corre las pruebas una vez (Vitest)          |
 | `npm run test:watch`   | Pruebas en modo observación                 |
+| `npm run db:generate`  | Regenera el cliente de Prisma               |
+| `npm run db:migrate`   | Crea y aplica migraciones (desarrollo)      |
+| `npm run db:studio`    | Abre Prisma Studio                          |
+| `npm run db:seed`      | Carga los datos base                        |
+| `npm run db:seed:dev`  | Carga datos ficticios (solo base local)     |
+
+## Base de datos
+
+PostgreSQL local con Docker y migraciones con Prisma 7. Los valores de `DATABASE_URL` y `DIRECT_URL` para el contenedor local son `postgresql://postgres:postgres@localhost:5432/agenda`.
+
+```bash
+docker compose up -d      # levanta PostgreSQL (esperar a que figure "healthy")
+npm run db:migrate        # aplica las migraciones pendientes
+npm run db:seed           # datos base (idempotente)
+npm run db:seed:dev       # datos ficticios; se niega a correr si la base no es local
+```
+
+### Cambiar el esquema
+
+1. Editar `prisma/schema.prisma`.
+2. `npm run db:migrate -- --name descripcion_corta` crea y aplica la migración.
+3. Revisar el `migration.sql` generado antes de hacer commit.
+4. **Nunca editar una migración que ya se aplicó** (ni siquiera en local si ya se subió): se corrige con una migración nueva.
+
+### Restricciones que Prisma no declara
+
+Los solapamientos, los CHECK, los índices parciales y el trigger del historial viven en `prisma/sql/001_constraints.sql` y se aplican dentro de la migración `*_constraints`. Para cambiar una:
+
+1. `npx prisma migrate dev --create-only --name nombre` (crea la migración sin aplicarla).
+2. Escribir el SQL a mano en ese `migration.sql`.
+3. `npm run db:migrate` para aplicarla.
+4. Actualizar el archivo de `prisma/sql/` para que siga reflejando el estado actual.
+
+### Volver atrás
+
+Prisma no tiene migraciones inversas. Según el caso:
+
+- **Local (datos de prueba):** `docker compose down -v` borra la base, y después `docker compose up -d`, `npm run db:migrate` y los seeds. También sirve `npx prisma migrate reset`.
+- **Una migración que falló a medias:** `npx prisma migrate resolve --rolled-back <nombre>` la marca como revertida después de deshacer a mano lo que dejó aplicado.
+- **Staging o producción:** no se retrocede; se escribe una migración nueva que corrija el problema. Antes de migrar en producción se hace un respaldo con `pg_dump`, y las migraciones se aplican con `npx prisma migrate deploy` (nunca `migrate dev` ni `reset`).
+
+Cuidado: `down -v` y `migrate reset` **borran todos los datos** de la base a la que apuntan.
 
 ## Normas de código
 
