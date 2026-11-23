@@ -1,3 +1,4 @@
+import { ERROR_CODES, type ErrorCode } from "@/shared/errors/error-codes";
 /**
  * Textos de la interfaz en español (voseo rioplatense).
  *
@@ -36,3 +37,29 @@ export const messages = {
 } as const;
 
 export type Messages = typeof messages;
+
+/**
+ * Texto visible para cada código de error. El tipo `Record<ErrorCode, string>` obliga a
+ * que todo código nuevo tenga su mensaje: si falta uno, no compila.
+ * Los textos no revelan quién tiene un horario ni ningún otro dato de terceros.
+ */
+export const errorMessages: Record<ErrorCode, string> = {
+  [ERROR_CODES.VALIDATION_FAILED]: "Revise los datos ingresados.",
+  [ERROR_CODES.NOT_AUTHENTICATED]: messages.errors.unauthenticated,
+  [ERROR_CODES.FORBIDDEN]: messages.errors.forbidden,
+  [ERROR_CODES.NOT_FOUND]: messages.errors.notFound,
+  [ERROR_CODES.SLOT_ALREADY_TAKEN]: "Ese horario ya no está disponible. Elige otro.",
+  [ERROR_CODES.MEMBER_ALREADY_BOOKED]: "Ya tiene una entrevista en ese horario.",
+  [ERROR_CODES.SLOT_NOT_OFFERED]: "Ese horario no forma parte de la agenda. Elige otro.",
+  [ERROR_CODES.LEADER_NOT_AVAILABLE]:
+    "Esa persona no está disponible para entrevistas. Elige otra.",
+  [ERROR_CODES.FORBIDDEN_LEADER_FOR_CATEGORY]:
+    "Este tipo de entrevista solo la puede atender el obispo.",
+  [ERROR_CODES.OVERBOOKING_LIMIT_REACHED]: "Se alcanzó el máximo de sobreturnos de este día.",
+  [ERROR_CODES.SENSITIVE_NOT_REASSIGNABLE]:
+    "Las entrevistas de asuntos sensibles no se pueden reasignar.",
+  [ERROR_CODES.INVALID_STATUS_TRANSITION]:
+    "Esa entrevista no se puede modificar en su estado actual.",
+  [ERROR_CODES.STAFF_ROLE_LIMIT_REACHED]:
+    "Ya se alcanzó la cantidad máxima de usuarios para ese rol.",
+};
