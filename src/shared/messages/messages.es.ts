@@ -30,6 +30,15 @@ export const messages = {
     invalidFormat: "El formato no es válido.",
     invalidDate: "La fecha no es válida.",
     invalidTime: "La hora no es válida.",
+    invalidId: "El identificador no es válido.",
+    invalidUuid: "El identificador del listado no es válido.",
+    invalidInstant:
+      "La fecha y la hora no son válidas. Falta la zona horaria o el formato es incorrecto.",
+    invalidWeekday: "El día de la semana no es válido.",
+    invalidDayRange: "La última entrevista no puede empezar antes que la primera.",
+    minutesOutOfRange: (min: number, max: number) =>
+      `Los minutos tienen que estar entre ${min} y ${max}.`,
+    mustBePositive: "Tiene que ser un número entero mayor que cero.",
     passwordTooLong: "La contraseña es demasiado larga.",
     tooShort: (min: number) => `Tiene que tener al menos ${min} caracteres.`,
     tooLong: (max: number) => `No puede tener más de ${max} caracteres.`,

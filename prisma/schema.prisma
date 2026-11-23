@@ -8,7 +8,7 @@
 // - Todos los instantes se guardan en UTC (timestamptz). La zona horaria de
 //   presentación vive en AppConfig.timezone, no en el código.
 // - Datos de contacto cifrados en la aplicación (AES-256-GCM): se guardan como
-//   texto (iv + tag + ciphertext en base64) en las columnas *Enc.
+//   texto (versión + iv + tag + ciphertext en base64) en las columnas *Enc.
 // - Si usás Prisma 7 o posterior, la URL de conexión se declara en
 //   prisma.config.ts y el generador puede cambiar de nombre: seguí la guía de
 //   tu versión.
@@ -330,7 +330,7 @@ model AppConfig {
   timezone                   String    @default("America/Argentina/Cordoba")
   defaultMemberTheme         ThemeMode @default(LIGHT)
   defaultMinutesPerInterview Int       @default(30)
-  maxOverbookingsPerDay      Int       @default(3)
+  maxOverbookingsPerDay      Int       @default(2)
   privacyNotice              String?
   updatedAt                  DateTime  @updatedAt @db.Timestamptz(3)
 }
