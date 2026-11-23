@@ -10,3 +10,4 @@ export {
   positiveIntSchema,
   weekdaySchema,
 } from "./minutes.schema";
+export { isPasswordWithinByteLimit, passwordSchema } from "./password.schema";
