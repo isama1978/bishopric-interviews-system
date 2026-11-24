@@ -37,3 +37,9 @@ export const INVALID_LINK_SECRET_MESSAGE =
   "El secreto de los enlaces personales es demasiado corto.";
 export const INVALID_LINK_VERSION_MESSAGE =
   "La versión del enlace tiene que ser un entero positivo.";
+
+/** Tokens opacos del personal (activación, restablecimiento y sesión): aleatorios, y solo se guarda su hash. */
+export const OPAQUE_TOKEN_BYTES = 32;
+export const OPAQUE_TOKEN_ENCODING = "base64url";
+export const TOKEN_HASH_ALGORITHM = "sha256";
+export const TOKEN_HASH_ENCODING = "hex";
