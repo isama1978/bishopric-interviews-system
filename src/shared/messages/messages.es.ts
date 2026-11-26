@@ -43,6 +43,23 @@ export const messages = {
     tooShort: (min: number) => `Tiene que tener al menos ${min} caracteres.`,
     tooLong: (max: number) => `No puede tener más de ${max} caracteres.`,
   },
+  memberImport: {
+    emptyFile: "El archivo está vacío.",
+    unreadable: (line: number) =>
+      `El archivo no tiene un formato CSV válido (comillas sin cerrar o mal ubicadas, cerca de la línea ${line}).`,
+    missingColumns: (names: readonly string[]) =>
+      `Faltan columnas obligatorias: ${names.join(", ")}.`,
+    duplicateColumns: (names: readonly string[]) => `Hay columnas repetidas: ${names.join(", ")}.`,
+    tooManyRows: (max: number) => `El archivo tiene demasiadas filas (el máximo es ${max}).`,
+    wrongColumnCount: (expected: number, found: number) =>
+      `La fila tiene ${found} columnas y se esperaban ${expected}.`,
+    nameRequired: "El nombre es obligatorio.",
+    nameTooLong: (max: number) => `El nombre no puede tener más de ${max} caracteres.`,
+    phoneTooLong: (max: number) => `El teléfono no puede tener más de ${max} caracteres.`,
+    invalidEmail: "El correo no es válido.",
+    duplicateUuid: (lines: readonly number[]) =>
+      `El identificador está repetido en las líneas ${lines.join(", ")}.`,
+  },
 } as const;
 
 export type Messages = typeof messages;
